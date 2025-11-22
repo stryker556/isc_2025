@@ -1,1 +1,94 @@
-¡welcome!
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mini Apple Music - Demo</title>
+  <meta name="description" content="Demo de interfaz similar a Apple Music (HTML/CSS/JS)" />
+  <style>
+    /* ===== Reset & base ===== */
+    :root{
+      --bg:#0f1724; /* deep navy */
+      --panel:#0b1220;
+      --muted:#9aa6b2;
+      --accent:#1db954; /* green-ish play */
+      --glass: rgba(255,255,255,0.04);
+      --card:#08121a;
+      --shadow: 0 6px 18px rgba(2,6,23,0.6);
+      --radius:14px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:linear-gradient(180deg,var(--bg),#07101a 60%);
+      color:#e6eef6; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    }
+
+    /* ===== Layout ===== */
+    .app{
+      display:flex; gap:20px; padding:28px; max-width:1200px; margin:0 auto; align-items:stretch;
+    }
+
+    /* Sidebar */
+    .sidebar{
+      width:260px; background:linear-gradient(180deg,var(--panel), rgba(255,255,255,0.02)); border-radius:18px; padding:18px; box-shadow:var(--shadow);
+      display:flex; flex-direction:column; gap:18px;
+    }
+    .logo{display:flex; align-items:center; gap:12px}
+    .logo .glyph{width:44px; height:44px; background:linear-gradient(135deg,#ff6b6b,#ff9a9e); border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:700}
+    .nav{display:flex; flex-direction:column; gap:8px}
+    .nav a{color:var(--muted); text-decoration:none; padding:8px 10px; border-radius:10px; display:flex; gap:10px; align-items:center}
+    .nav a.active, .nav a:hover{background:var(--glass); color:#fff}
+
+    .library{flex:1; overflow:auto}
+    .create-playlist{display:flex; gap:8px; align-items:center; padding:10px; border-radius:12px; background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));}
+    .create-playlist button{background:transparent; border:1px dashed rgba(255,255,255,0.06); color:var(--muted); padding:8px 10px; border-radius:8px}
+
+    /* Main content */
+    .main{
+      flex:1; display:flex; flex-direction:column; gap:18px;
+    }
+    .topbar{display:flex; justify-content:space-between; align-items:center; gap:12px}
+    .search{flex:1; display:flex; align-items:center; gap:12px; background:var(--glass); padding:10px 12px; border-radius:12px}
+    .search input{background:transparent;border:0; outline:none; color:inherit; width:100%}
+
+    .hero{background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:16px; padding:18px; display:flex; gap:18px; align-items:center}
+    .hero .art{width:140px; height:140px; border-radius:12px; overflow:hidden; flex-shrink:0}
+    .hero .meta{display:flex; flex-direction:column; gap:6px}
+    .hero h1{margin:0; font-size:20px}
+    .hero p{margin:0; color:var(--muted)}
+    .hero .controls{display:flex; gap:8px; margin-top:10px}
+    .btn{padding:10px 14px; border-radius:12px; border:0; cursor:pointer}
+    .btn.play{background:linear-gradient(90deg,var(--accent), #1ed760); color:#04100a; font-weight:700}
+    .btn.ghost{background:transparent; border:1px solid rgba(255,255,255,0.06); color:var(--muted)}
+
+    /* Grid of albums / tracks */
+    .grid{display:grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap:16px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent); padding:12px; border-radius:12px}
+    .card .cover{width:100%; height:140px; border-radius:10px; overflow:hidden}
+    .card .title{font-size:14px; margin-top:8px}
+    .card .subtitle{font-size:12px; color:var(--muted)}
+
+    /* Player bar */
+    .player{
+      position:fixed; left:50%; transform:translateX(-50%); bottom:20px; width:min(1100px, calc(100% - 56px)); background:linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02)); padding:10px 14px; border-radius:14px; box-shadow:var(--shadow); display:flex; gap:12px; align-items:center; z-index:40
+    }
+    .player .left{display:flex; gap:12px; align-items:center}
+    .player .cover{width:56px; height:56px; border-radius:8px; overflow:hidden}
+    .player .track{min-width:180px}
+    .player .controls{display:flex; gap:10px; align-items:center}
+    .progress{flex:1; display:flex; align-items:center; gap:8px}
+    .progress input[type=range]{width:100%}
+    .time{font-size:12px; color:var(--muted)}
+
+    /* Responsive small screens */
+    @media (max-width:880px){
+      .app{flex-direction:column; padding:18px}
+      .sidebar{width:100%; order:2}
+      .player{left:12px; transform:none; width:calc(100% - 24px)}
+      .grid{grid-template-columns:repeat(auto-fill, minmax(140px,1fr))}
+    }
+
+    /* small interactive touches */
+    .faint{color:var(--muted)}
