@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mi Reproductor - GitHub Pages</title>
+  <style>
+    /* CSS minimal para una UI limpia */
+    :root{
+      --bg:#0f1724; --card:#0b1220; --accent:#4f46e5; --text:#e6eef8;
+    }
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial;background:linear-gradient(180deg,var(--bg),#071028);color:var(--text);display:flex;align-items:center;justify-content:center;padding:24px;}
+    .player{width:100%;max-width:720px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:12px;padding:20px;box-shadow:0 8px 30px rgba(2,6,23,0.6);}
+    .meta{display:flex;gap:16px;align-items:center;}
+    .cover{width:96px;height:96px;flex:0 0 96px;border-radius:8px;background:#071229;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+    .cover img{width:100%;height:100%;object-fit:cover;}
+    .info{flex:1;}
+    .title{font-size:1.05rem;font-weight:600;margin:0;}
+    .artist{opacity:0.8;margin-top:6px;font-size:.92rem;}
+    .controls{display:flex;align-items:center;gap:12px;justify-content:center;margin-top:18px;}
+    button{background:transparent;border:0;color:var(--text);cursor:pointer;font-size:18px;padding:10px;border-radius:8px}
+    button:active{transform:translateY(1px)}
+    .big{font-size:24px;padding:12px 14px;background:rgba(255,255,255,0.02)}
+    .progress-wrap{margin-top:16px;}
+    .progress{height:8px;background:rgba(255,255,255,0.06);border-radius:999px;cursor:pointer;position:relative;overflow:hidden;}
+    .progress > .bar{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#06b6d4);border-radius:999px;}
+    .time{display:flex;justify-content:space-between;font-size:.85rem;margin-top:6px;opacity:0.8}
+    .playlist{margin-top:18px;border-top:1px solid rgba(255,255,255,0.03);padding-top:12px;max-height:180px;overflow:auto;}
+    .track{padding:8px 6px;border-radius:6px;display:flex;align-items:center;gap:10px;cursor:pointer}
+    .track.active{background:rgba(79,70,229,0.09)}
+    .track:hover{background:rgba(255,255,255,0.02)}
+    .vol{display:flex;align-items:center;gap:8px}
+    @media (max-width:520px){ .meta{flex-direction:column;align-items:flex-start} .cover{width:82px;height:82px} }
+  </style>
+</head>
+<body>
+  <div class="player" id="player">
+    <div class="meta">
+      <div class="cover" id="cover"><img src="tracks/cover1.jpg" alt="cover" onerror="this.style.opacity=.1"></div>
+      <div class="info">
+        <p class="title" id="title">Título</p>
+        <p class="artist" id="artist">Artista</p>
+      </div>
+      <div style="min-width:120px;text-align:right">
+        <div class="vol">
+          <label for="volRange" style="font-size:.85rem;opacity:.8">Vol</label>
+          <input id="volRange" type="range" min="0" max="1" step="0.01" value="0.9" style="width:80px">
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="prev" title="Anterior">⏮️</button>
+      <button id="play" class="big" title="Reproducir/Pausar">▶️</button>
+      <button id="next" title="Siguiente">⏭️</button>
+      <button id="repeat" title="Repetir">🔁</button>
+      <button id="shuffle" title="Aleatorio">🔀</button>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress" id="progress">
+        <div class="bar" id="bar"></div>
+      </div>
+      <div class="time"><span id="curTime">0:00</span><span id="dur">0:00</span></div>
+    </div>
+
+    <div class="playlist" id="playlist"></div>
+  </div>
+
+  <!-- Elemento audio oculto -->
+  <audio id="audio"></audio>
+
+  <script>
+    // Lista de pistas: usa rutas relativas a /tracks/ en tu repo
+    const tracks = [
+      { src: "tracks/pista1.mp3", title: "Pista 1", artist: "Artista A", cover: "tracks/cover1.jpg" },
+      { src: "tracks/pista2.mp3", title: "Pista 2", artist: "Artista B", cover: "tracks/cover2.jpg" },
+      // Añade más objetos aquí
+    ];
+
+    // Elementos DOM
+    const audio = document.getElementById("audio");
+    const playBtn = document.getElementById("play");
+    const prevBtn = document.getElementById("prev");
+    const nextBtn = document.getElementById("next");
+    const titleEl = document.getElementById("title");
+    const artistEl = document.getElementById("artist");
+    const coverEl = document.getElementById("cover");
+    const playlistEl = document.getElementById("playlist");
+    const curTimeEl = document.getElementById("curTime");
+    const durEl = document.getElementById("dur");
+    const progress = document.getElementById("progress");
+    const bar = document.getElementById("bar");
+    const volRange = document.getElementById("volRange");
+    const repeatBtn = document.getElementById("repeat");
+    const shuffleBtn = document.getElementById("shuffle");
+
+    let current = 0;
+    let isPlaying = false;
+    let repeatMode = false;
+    let shuffleMode = false;
+
+    // Construir la playlist UI
+    tracks.forEach((t, i) => {
+      const row = document.createElement("div");
+      row.className = "track";
+      row.dataset.index = i;
+      row.innerHTML = `<div style="flex:1"><strong>${t.title}</strong><div style="font-size:.85rem;opacity:.8">${t.artist}</div></div><div style="min-width:48px;text-align:right">${formatTime(0)}</div>`;
+      row.addEventListener("click", () => { loadTrack(i); play(); });
+      playlistEl.appendChild(row);
+    });
+
+    function loadTrack(index) {
+      if (index < 0) index = tracks.length - 1;
+      if (index >= tracks.length) index = 0;
+      current = index;
+      audio.src = tracks[current].src;
+      titleEl.textContent = tracks[current].title;
+      artistEl.textContent = tracks[current].artist;
+      const img = document.createElement("img");
+      img.src = tracks[current].cover || "";
+      img.alt = "cover";
+      img.onerror = ()=>{ img.style.opacity = 0.12; }
+      coverEl.innerHTML = "";
+      coverEl.appendChild(img);
+      updateActive();
+    }
+
+    function updateActive(){
+      [...playlistEl.children].forEach((c, i) => c.classList.toggle("active", i===current));
+    }
+
+    function play(){
+      audio.play().catch(e => {
+        // Los navegadores bloquean autoplay si no hay interacción.
+        console.warn("No se pudo reproducir automáticamente:", e);
+      });
+      isPlaying = true;
+      playBtn.textContent = "⏸️";
+    }
+    function pause(){
+      audio.pause();
+      isPlaying = false;
+      playBtn.textContent = "▶️";
+    }
+    playBtn.addEventListener("click", () => isPlaying ? pause() : play());
+
+    prevBtn.addEventListener("click", () => {
+      if (audio.currentTime > 3) { audio.currentTime = 0; } else { loadTrack(current - 1); play(); }
+    });
+
+    nextBtn.addEventListener("click", () => {
+      if (shuffleMode) {
+        loadTrack(Math.floor(Math.random()*tracks.length));
+      } else {
+        loadTrack(current + 1);
+      }
+      play();
+    });
+
+    // repeat & shuffle
+    repeatBtn.addEventListener("click", ()=>{ repeatMode = !repeatMode; repeatBtn.style.opacity = repeatMode ? 1 : 0.6; });
+    shuffleBtn.addEventListener("click", ()=>{ shuffleMode = !shuffleMode; shuffleBtn.style.opacity = shuffleMode ? 1 : 0.6; });
+
+    // Tiempo y progress
+    audio.addEventListener("timeupdate", () => {
+      if (audio.duration) {
+        const pct = (audio.currentTime / audio.duration) * 100;
+        bar.style.width = pct + "%";
+        curTimeEl.textContent = formatTime(audio.currentTime);
+      }
+    });
+
+    audio.addEventListener("loadedmetadata", () => {
+      durEl.textContent = formatTime(audio.duration);
+    });
+
+    audio.addEventListener("ended", () => {
+      if (repeatMode) {
+        audio.currentTime = 0; play();
+      } else {
+        nextBtn.click();
+      }
+    });
+
+    // Click en progress para saltar
+    progress.addEventListener("click", (e) => {
+      const rect = progress.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const pct = x / rect.width;
+      if (audio.duration) audio.currentTime = pct * audio.duration;
+    });
+
+    // Volumen
+    volRange.addEventListener("input", ()=>{ audio.volume = parseFloat(volRange.value); });
+
+    // Formato mm:ss
+    function formatTime(sec){
+      if (!sec || isNaN(sec)) return "0:00";
+      sec = Math.floor(sec);
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m}:${s.toString().padStart(2,"0")}`;
+    }
+
+    // Inicializar
+    loadTrack(0);
+    audio.volume = parseFloat(volRange.value);
+    // Para evitar bloqueo de reproducción automática: requiere interacción del usuario.
+  </script>
+</body>
+</html>
